@@ -1,0 +1,85 @@
+﻿using ClosedXML.Excel;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using searchInfoCNPJS.Model;
+using System;
+using System.Linq;
+using System.Net;
+using System.Net.Http;
+using System.Threading;
+using System.Web.Helpers;
+using System.Web.UI;
+
+
+namespace searchInfoCNPJS
+{
+    
+    public partial class _Default : Page
+    {
+        int longTimeout = 60000;
+        protected void Page_Load(object sender, EventArgs e)
+        {
+            
+        }
+        protected void btnConsultar_Click(object sender, EventArgs e)
+        {
+            var xls = new XLWorkbook(@"C:\Users\jucelino.junior\Desktop\chamados\pesquisacnpj\cnpjporcidade.xlsx");
+            var planilha = xls.Worksheets.First(w => w.Name == "agrestina");
+            var totalLinhas = planilha.Rows().Count();
+
+            for (int l = 2; l <= totalLinhas; l++)
+            {
+                
+                string codigo = planilha.Cell($"A{l}").GetHyperlink().ExternalAddress.AbsolutePath;
+
+                var valores = GetCNPJ(codigo);
+
+                planilha.Cell($"B{l}").SetValue(valores.telefone);
+                planilha.Cell($"C{l}").SetValue(valores.email);
+                planilha.Cell($"D{l}").SetValue(valores.logradouro +" , "+ valores.numero +" , "+ valores.bairro);
+                if(valores.qsa.Length == 0)
+                {
+                    planilha.Cell($"E{l}").SetValue(valores.qsa);
+                }
+                else
+                {
+                    int qtdQsa = valores.qsa.Length;
+                    for (int i = 0; i < qtdQsa; i++)
+                    {
+                        planilha.Cell($"E{l}").SetValue(valores.qsa[i].nome);
+                    }
+
+                }
+                planilha.Cell($"F{l}").SetValue(valores.atividade_principal[0].text);
+                //var telefone = valores.telefone;
+                //var cnpj = valores.cnpj;
+                xls.Save();
+                Thread.Sleep(20001);
+            }
+
+            
+
+        }
+
+        public dynamic GetCNPJ(string cnpj)
+        {
+            var PJ = new PessoaJuridica();
+
+            HttpClient httpClient = new HttpClient();
+            httpClient.BaseAddress = new Uri("https://www.receitaws.com.br");
+            HttpResponseMessage resposta = httpClient.GetAsync("v1/cnpj" + cnpj).Result;
+            ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12 | SecurityProtocolType.Ssl3;
+            ServicePointManager.ServerCertificateValidationCallback += (sender, certificate, chain, sslPolicyErrors) => true;
+            
+            resposta.EnsureSuccessStatusCode();
+            string model = resposta.Content.ReadAsStringAsync().Result;
+            var jsonRetorno = Json.Decode(model);
+
+            return jsonRetorno;
+
+        }
+
+    }
+
+
+}

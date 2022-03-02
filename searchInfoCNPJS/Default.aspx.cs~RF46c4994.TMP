@@ -1,0 +1,60 @@
+﻿using ClosedXML.Excel;
+using Newtonsoft.Json;
+using searchInfoCNPJS.Controllers;
+using searchInfoCNPJS.Model;
+using System;
+using System.Collections.Generic;
+using System.Data;
+using System.IO;
+using System.Linq;
+using System.Net;
+using System.Net.Http;
+using System.Net.Http.Headers;
+using System.Text;
+using System.Text.RegularExpressions;
+using System.Threading.Tasks;
+using System.Web.UI;
+
+
+namespace searchInfoCNPJS
+{
+    
+    public partial class _Default : Page
+    {
+        protected void Page_Load(object sender, EventArgs e)
+        {
+            
+        }
+        protected void btnConsultar_Click(object sender, EventArgs e)
+        {
+            var xls = new XLWorkbook(@"C:\Users\jucelino.junior\Desktop\chamados\pesquisacnpj\cnpjporcidade.xlsx");
+            var planilha = xls.Worksheets.First(w => w.Name == "agrestina");
+            var totalLinhas = planilha.Rows().Count();
+
+            for (int l = 2; l <= totalLinhas; l++)
+            {
+                string codigo = planilha.Cell($"B{l}").GetHyperlink().ExternalAddress.AbsolutePath;
+                //string url = "https://www.receitaws.com.br/v1/cnpj" + codigo.ExternalAddress.AbsolutePath;
+                GetCNPJ(codigo);
+            }
+
+        }
+
+        public void GetCNPJ(string codigo)
+        {
+
+            HttpClient httpClient = new HttpClient();
+            httpClient.BaseAddress = new Uri("https://www.receitaws.com.br/v1/cnpj" + codigo);
+            HttpResponseMessage resposta =  httpClient.GetAsync(codigo).Result;
+            httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+            Response.ContentType = "application/json";
+
+            resposta.EnsureSuccessStatusCode();
+            var model = resposta.Content.ReadAsAsync<IEnumerable<PessoaJuridica>>().Result.ToString();
+            JsonConvert.DeserializeObject(model);
+        }
+
+    }
+
+
+}
